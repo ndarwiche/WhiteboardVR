@@ -4,6 +4,9 @@ using UnityEngine;
 
 namespace WhiteboardXR.ColorPicker
 {
+    /// <summary>
+    /// Used to color objects of type IColorable (mainly brushes) when these objects touch the ColorPicker
+    /// </summary>
     [RequireComponent(typeof(Renderer))]
     public class ColorPicker : MonoBehaviour
     {
@@ -32,8 +35,10 @@ namespace WhiteboardXR.ColorPicker
                 return;
             Vector3 localPosition = transform.InverseTransformPoint(collision.collider.transform.position);
             Vector2 uv = localPosition + new Vector3(_pickerSize * 0.5f, _pickerSize * 0.5f) / _pickerSize;
-            Debug.Log($"Pos = {localPosition} , uv = {uv}");
-            colorable.Color = GetColor(uv);
+            Color newColor = GetColor(uv);
+            //ignore transparent area
+            if (newColor.a > 0.1f)
+                colorable.Color = GetColor(uv);
         }
     }
 }
