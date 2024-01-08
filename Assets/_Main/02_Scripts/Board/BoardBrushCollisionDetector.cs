@@ -12,7 +12,7 @@ namespace WhiteboardXR.Board
 
         private void OnTriggerEnter(Collider other)
         {
-            var brush = other.GetComponent<Brush>();
+            var brush = other.GetComponentInParent<Brush>();
             if (brush)
             {
                 _board.SetBrushActive(brush, true);
@@ -20,7 +20,7 @@ namespace WhiteboardXR.Board
         }
         private void OnTriggerExit(Collider other)
         {
-            var brush = other.GetComponent<Brush>();
+            var brush = other.GetComponentInParent<Brush>();
             if (brush)
             {
                 _board.SetBrushActive(brush, false);

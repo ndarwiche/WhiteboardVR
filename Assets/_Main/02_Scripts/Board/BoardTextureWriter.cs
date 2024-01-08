@@ -5,6 +5,9 @@ using WhiteboardXR.Brushes;
 
 namespace WhiteboardXR.Board
 {
+    /// <summary>
+    /// Uses a compute shader to write to the board texture with brushes
+    /// </summary>
     public class BoardTextureWriter : MonoBehaviour
     {
         private static readonly int BaseMap = Shader.PropertyToID("_BaseMap");
@@ -41,8 +44,7 @@ namespace WhiteboardXR.Board
             _shader.SetTexture(_kernel, "Result", BoardTexture);
             _shader.SetInt("size", _textureSize);
             _shader.SetFloat("quadSize", transform.localScale.x);
-
-            //Spheres
+            
             _particleArray = new Particle[_brushes.Count];
             _particlesComputeBuffer = new ComputeBuffer(_particleArray.Length, 12 + 12 + 16 + 4);
             _particlesComputeBuffer.SetData(_particleArray);
@@ -68,6 +70,14 @@ namespace WhiteboardXR.Board
 
         private void Update()
         {
+            UpdateParticles();
+
+            _particlesComputeBuffer.SetData(_particleArray);
+            _shader.Dispatch(_kernel, Mathf.CeilToInt(_textureSize / 8f), Mathf.CeilToInt(_textureSize / 8f), 1);
+        }
+
+        private void UpdateParticles()
+        {
             for (int i = 0; i < _brushes.Count; ++i)
             {
                 Vector3 particlePos = _brushes[i].transform.position;
@@ -76,9 +86,6 @@ namespace WhiteboardXR.Board
                 _particleArray[i].position = particlePos;
                 _particleArray[i].color = _brushes[i].Color;
             }
-
-            _particlesComputeBuffer.SetData(_particleArray);
-            _shader.Dispatch(_kernel, Mathf.CeilToInt(_textureSize / 8f), Mathf.CeilToInt(_textureSize / 8f), 1);
         }
 
         private void OnDestroy()
