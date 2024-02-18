@@ -1,0 +1,69 @@
+#pragma kernel CSMain
+
+struct Particle
+{
+    float4 color;
+    float3 previousPosition;
+    float3 position;
+    float isActive;
+};
+
+StructuredBuffer<Particle> particleBuffer;
+RWTexture2D<float4> Result;
+
+int size; //texture resolution
+int particleCount; //no. of spheres
+float quadSize; //scale of the Quad object in scene
+#define LARGE_DISTANCE  100
+
+float2 uvFromPos(float3 pos)
+{
+    return (pos.xy + quadSize * 0.5f) / quadSize;
+}
+
+/**
+ * \brief returns the minimum distance between a point and a line segment
+ * \param v first point of the line segment
+ * \param w second point of the line segment
+ * \param p the point
+ * \return minimum distance between a point and a line segment
+ */
+float minimum_distance(float2 v, float2 w, float2 p)
+{
+    // Return minimum distance between line segment vw and point p
+    const float l2 = pow(w.x - v.x, 2) + pow(w.y - v.y, 2); // i.e. |w-v|^2 -  avoid a sqrt
+    if (l2 == 0) return distance(p, v); // v == w case
+    // Consider the line extending the segment, parameterized as v + t (w - v).
+    // We find projection of point p onto the line. 
+    // It falls where t = [(p-v) . (w-v)] / |w-v|^2
+    // We clamp t from [0,1] to handle points outside the segment vw.
+    const float t = saturate(dot(p - v, w - v) / l2);
+    const float2 projection = v + t * (w - v); // Projection falls on the segment
+    return distance(p, projection);
+}
+
+[numthreads(8,8,1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    float2 uv = float2(id.xy) / float(size);
+    float minDist = LARGE_DISTANCE - 1;
+    float lastMinDist = minDist;
+    float4 brushColor = 1;
+    for (int i = 0; i < particleCount; i++)
+    {
+        float dist = minimum_distance(uvFromPos(particleBuffer[i].previousPosition), uvFromPos(particleBuffer[i].position), uv);
+        //make the distance large if the brush is not active
+        dist += LARGE_DISTANCE * (1 - particleBuffer[i].isActive);
+        minDist = min(dist, minDist);
+        //check if the minimum distance is changed, change the brushColor
+        float distDiff = lastMinDist - minDist;
+        distDiff = saturate(distDiff);
+        distDiff = ceil(distDiff);
+        brushColor = lerp(brushColor, particleBuffer[i].color, distDiff);
+        lastMinDist = minDist;
+    }
+    //Alpha blend
+    float lerpValue = lerp(0, max(0, 0.01f - minDist) * 100, brushColor.a);
+    const float4 color = lerp(Result[id.xy], brushColor, lerpValue);
+    Result[id.xy] = color;
+}
